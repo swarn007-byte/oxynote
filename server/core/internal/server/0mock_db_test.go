@@ -187,6 +187,9 @@ var _ DB = &DBMock{}
 //			FetchRecentlyViewedDocumentsFunc: func(ctx context.Context, userID string, organizationID string, from search.ViewFrom, limit int) ([]search.RecentDocument, error) {
 //				panic("mock out the FetchRecentlyViewedDocuments method")
 //			},
+//			FetchRequestedReviewsFunc: func(ctx context.Context, organizationID string, userID string) ([]document.RequestedReview, error) {
+//				panic("mock out the FetchRequestedReviews method")
+//			},
 //			FetchSlackAppByOrganizationIDFunc: func(ctx context.Context, organizationID string) (*slackCore.App, error) {
 //				panic("mock out the FetchSlackAppByOrganizationID method")
 //			},
@@ -484,6 +487,9 @@ type DBMock struct {
 
 	// FetchRecentlyViewedDocumentsFunc mocks the FetchRecentlyViewedDocuments method.
 	FetchRecentlyViewedDocumentsFunc func(ctx context.Context, userID string, organizationID string, from search.ViewFrom, limit int) ([]search.RecentDocument, error)
+
+	// FetchRequestedReviewsFunc mocks the FetchRequestedReviews method.
+	FetchRequestedReviewsFunc func(ctx context.Context, organizationID string, userID string) ([]document.RequestedReview, error)
 
 	// FetchSlackAppByOrganizationIDFunc mocks the FetchSlackAppByOrganizationID method.
 	FetchSlackAppByOrganizationIDFunc func(ctx context.Context, organizationID string) (*slackCore.App, error)
@@ -1084,6 +1090,15 @@ type DBMock struct {
 			// Limit is the limit argument value.
 			Limit int
 		}
+		// FetchRequestedReviews holds details about calls to the FetchRequestedReviews method.
+		FetchRequestedReviews []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// OrganizationID is the organizationID argument value.
+			OrganizationID string
+			// UserID is the userID argument value.
+			UserID string
+		}
 		// FetchSlackAppByOrganizationID holds details about calls to the FetchSlackAppByOrganizationID method.
 		FetchSlackAppByOrganizationID []struct {
 			// Ctx is the ctx argument value.
@@ -1524,6 +1539,7 @@ type DBMock struct {
 	lockFetchNotificationCount                    sync.RWMutex
 	lockFetchOrganizationMembers                  sync.RWMutex
 	lockFetchRecentlyViewedDocuments              sync.RWMutex
+	lockFetchRequestedReviews                     sync.RWMutex
 	lockFetchSlackAppByOrganizationID             sync.RWMutex
 	lockFetchSlackAppByTeamID                     sync.RWMutex
 	lockFetchSlackMessages                        sync.RWMutex
@@ -3795,6 +3811,50 @@ func (mock *DBMock) FetchRecentlyViewedDocumentsCalls() []struct {
 	mock.lockFetchRecentlyViewedDocuments.RLock()
 	calls = mock.calls.FetchRecentlyViewedDocuments
 	mock.lockFetchRecentlyViewedDocuments.RUnlock()
+	return calls
+}
+
+// FetchRequestedReviews calls FetchRequestedReviewsFunc.
+func (mock *DBMock) FetchRequestedReviews(ctx context.Context, organizationID string, userID string) ([]document.RequestedReview, error) {
+	callInfo := struct {
+		Ctx            context.Context
+		OrganizationID string
+		UserID         string
+	}{
+		Ctx:            ctx,
+		OrganizationID: organizationID,
+		UserID:         userID,
+	}
+	mock.lockFetchRequestedReviews.Lock()
+	mock.calls.FetchRequestedReviews = append(mock.calls.FetchRequestedReviews, callInfo)
+	mock.lockFetchRequestedReviews.Unlock()
+	if mock.FetchRequestedReviewsFunc == nil {
+		var (
+			requestedReviewsOut []document.RequestedReview
+			errOut              error
+		)
+		return requestedReviewsOut, errOut
+	}
+	return mock.FetchRequestedReviewsFunc(ctx, organizationID, userID)
+}
+
+// FetchRequestedReviewsCalls gets all the calls that were made to FetchRequestedReviews.
+// Check the length with:
+//
+//	len(mockedDB.FetchRequestedReviewsCalls())
+func (mock *DBMock) FetchRequestedReviewsCalls() []struct {
+	Ctx            context.Context
+	OrganizationID string
+	UserID         string
+} {
+	var calls []struct {
+		Ctx            context.Context
+		OrganizationID string
+		UserID         string
+	}
+	mock.lockFetchRequestedReviews.RLock()
+	calls = mock.calls.FetchRequestedReviews
+	mock.lockFetchRequestedReviews.RUnlock()
 	return calls
 }
 

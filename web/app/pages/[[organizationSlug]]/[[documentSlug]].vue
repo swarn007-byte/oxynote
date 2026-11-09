@@ -39,6 +39,16 @@ definePageMeta({
 			useCapabilitiesAPI().fetchCapabilities.refresh(),
 		)
 
+		if (to.params.documentSlug === "reviews") {
+			if (!equalNameSlugs(to.params.organizationSlug as string, orgRealName)) {
+				return navigateTo(`/${createNameSlug(orgRealName)}/reviews`, {
+					replace: true,
+				})
+			}
+
+			return
+		}
+
 		if (!to.params.documentSlug || typeof to.params.documentSlug !== "string") {
 			const docTree = await fetchDocumentTree.refresh()
 			if (!docTree.data?.length) {
@@ -108,6 +118,9 @@ definePageMeta({
 
 useShortcut() // use for side effects
 const pageRoute = useRoute()
+const showingReviews = computed(
+	() => pageRoute.params.documentSlug === "reviews",
+)
 const pageRouter = useRouter()
 const {
 	fetchDocumentTree,
@@ -134,7 +147,9 @@ const loadedSections = ref({
 	documentEditor: false,
 })
 const allSectionsLoaded = computed(() =>
-	Object.values(loadedSections.value).every((v) => v),
+	showingReviews.value
+		? loadedSections.value.sidebar
+		: Object.values(loadedSections.value).every((v) => v),
 )
 
 const createLoading = ref(false)
@@ -218,11 +233,13 @@ let recordedBranchView = ""
 
 useHead({
 	title: () =>
-		activeDocMetadata.value
-			? t("general.document-page-title", {
-					suffix: activeDocMetadata.value.name,
-				})
-			: t("general.default-page-title"),
+		showingReviews.value
+			? t("sidebar.reviews.title")
+			: activeDocMetadata.value
+				? t("general.document-page-title", {
+						suffix: activeDocMetadata.value.name,
+					})
+				: t("general.default-page-title"),
 })
 
 onUnmounted(() => {
@@ -847,7 +864,13 @@ function clearLinkedBlock() {
 			/>
 			<TagDeletionModal v-model="pendingTagDeletion" />
 			<main ref="main" class="w-full min-w-0 bg-background">
-				<EditorIconPickerProvider>
+				<template v-if="showingReviews">
+					<header class="flex h-10 items-center border-b px-2">
+						<ShadcnUiSidebarTrigger :label="t('sidebar.toggle-sidebar')" />
+					</header>
+					<RequestedReviews />
+				</template>
+				<EditorIconPickerProvider v-else>
 					<DocumentHeader
 						:all-initial-sections-loaded="allSectionsLoaded"
 						:breadcrumbs="breadcrumbs"

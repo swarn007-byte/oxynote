@@ -224,6 +224,7 @@ func (s *Server) router() chi.Router {
 	}))
 
 	r.Get("/capabilities", s.fetchCapabilities)
+	r.Get("/reviews", s.handlers.review.FetchRequestedReviews)
 
 	r.Route("/github", func(sr chi.Router) {
 		// the status endpoint stays available when the GitHub App is not

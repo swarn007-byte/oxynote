@@ -51,6 +51,7 @@ const { fetchSlackConnectionStatus, slackConfigured, fetchSlackInstallURL } =
 const { useFetchNotificationCount } = useNotificationAPI()
 const fetchNotificationCount = useFetchNotificationCount({ read: false })
 const editorStore = useEditorStore()
+const pageRoute = useRoute()
 const { openExternalLink } = useExternalLinks()
 const wsState = useWebSocketStateStore()
 let unsubWsTreeChange: (() => void) | null | undefined = null
@@ -157,6 +158,17 @@ const sections = computed<Section[]>(() => {
 	}
 
 	const topSectionItems: SidebarItem[] = [
+		{
+			id: "requested-reviews",
+			name: t("sidebar.reviews.title"),
+			url: `/${createNameSlug(fetchOrganization.data.value?.data?.slug || "")}/reviews`,
+			icon: "lucide:clipboard-check",
+			acceptsChildren: false,
+			active: pageRoute.params.documentSlug === "reviews",
+			draggable: false,
+			actions: [],
+			children: null,
+		},
 		{
 			id: "search-button",
 			name: t("sidebar.sections.top.search-button"),

@@ -119,6 +119,14 @@
 		"notification-sheet": {
 			"title": "Inbox",
 			"description": "Shows your notifications."
+		},
+		"reviews": {
+			"title": "Requested reviews",
+			"description": "Document branches waiting for your review in this workspace.",
+			"refresh": "Refresh",
+			"loading": "Loading requested reviews…",
+			"empty": "You have no pending review requests.",
+			"error": "Could not load your review requests. Try refreshing."
 		}
 	}
 }

@@ -262,6 +262,15 @@ describe("<AppSidebar>", { concurrent: false }, () => {
 		expect(wrapper.text()).toContain(t("sidebar.sections.top.inbox"))
 	})
 
+	it("links requested reviews from the sidebar", async ({ expect }) => {
+		stubQueries()
+		const wrapper = await mountSidebar()
+
+		expect(
+			itemNamed(wrapper, t("sidebar.reviews.title")).attributes("href"),
+		).toBe("/acme-corp/reviews")
+	})
+
 	it("shows the unread notification count on the inbox row", async ({
 		expect,
 	}) => {

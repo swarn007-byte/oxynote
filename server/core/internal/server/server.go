@@ -35,6 +35,7 @@ import (
 	"github.com/oxynote/oxynote/server/core/internal/server/internal/mcp"
 	"github.com/oxynote/oxynote/server/core/internal/server/internal/notification"
 	"github.com/oxynote/oxynote/server/core/internal/server/internal/org"
+	"github.com/oxynote/oxynote/server/core/internal/server/internal/review"
 	"github.com/oxynote/oxynote/server/core/internal/server/internal/slack"
 	"github.com/oxynote/oxynote/server/core/internal/server/internal/tag"
 	"github.com/oxynote/oxynote/server/core/internal/server/internal/user"
@@ -120,6 +121,7 @@ type Server struct {
 		user         *user.Handler
 		organization *org.Handler
 		document     *document.Handler
+		review       *review.Handler
 		tag          *tag.Handler
 		variable     *variable.Handler
 		comment      *comment.Handler
@@ -190,6 +192,7 @@ func NewServer(
 	)
 	srv.handlers.document = document.NewHandler(log, db, hookMan, searcher, searchQueue, notifier, storageClient)
 	srv.handlers.tag = tag.NewHandler(log, db)
+	srv.handlers.review = review.NewHandler(log, db)
 	srv.handlers.variable = variable.NewHandler(log, variableMan)
 	srv.handlers.comment = comment.NewHandler(log, db, notifier)
 	srv.handlers.files = files.NewHandler(log, db, storageClient, opts.PublicURL)
@@ -368,6 +371,7 @@ func (s *Server) bindVersionPing(tpc wsserver.Topic) {
 //nolint:interfacebloat // facade composed of the handlers' interfaces
 type DB interface {
 	document.DB
+	review.DB
 	comment.DB
 	files.DB
 	hook.DB

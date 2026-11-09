@@ -67,6 +67,7 @@ const CHILD_STUBS = {
 	AIChatSidebar: true,
 	NotificationBox: true,
 	VariablesPanel: true,
+	RequestedReviews: true,
 }
 
 describe("document-editor middleware", { concurrent: false }, () => {
@@ -110,6 +111,29 @@ describe("document-editor middleware", { concurrent: false }, () => {
 
 		expect(capabilityCalls).toHaveLength(1)
 		expect(navigateToMock).not.toHaveBeenCalled()
+	})
+
+	it("opens requested reviews without treating it as a document slug", async ({
+		expect,
+	}) => {
+		seedWorkspace()
+
+		const result = await runMiddleware(documentRoute("reviews", "Acme"))
+
+		expect(result).toBeUndefined()
+		expect(navigateToMock).not.toHaveBeenCalled()
+	})
+
+	it("keeps requested reviews when the workspace slug changes", async ({
+		expect,
+	}) => {
+		seedWorkspace()
+
+		await runMiddleware(documentRoute("reviews", "Old"))
+
+		expect(navigateToMock).toHaveBeenCalledExactlyOnceWith("/Acme/reviews", {
+			replace: true,
+		})
 	})
 
 	it("lets the empty workspace view through when there are no documents", async ({
@@ -231,6 +255,26 @@ describe("<document-editor>", { concurrent: false }, () => {
 	})
 
 	describe("when the url names a document", { concurrent: false }, () => {
+		it("shows requested reviews instead of an editor and can return to a document", async ({
+			expect,
+		}) => {
+			seedWorkspace()
+			const route = arrangeRoute({ documentSlug: "reviews" })
+			const wrapper = await mountPage()
+
+			expect(child(wrapper, "RequestedReviews").exists()).toBe(true)
+			expect(child(wrapper, "EditorDocumentContainer").exists()).toBe(false)
+			expect(child(wrapper, "EditorNoDocumentIndicator").exists()).toBe(false)
+			expect(useEditorStore().activeDocumentId).toBeNull()
+
+			route.params.documentSlug = `Intro-${DOC_ID}`
+			await settleMutations()
+
+			expect(child(wrapper, "RequestedReviews").exists()).toBe(false)
+			expect(child(wrapper, "EditorDocumentContainer").exists()).toBe(true)
+			expect(useEditorStore().activeDocumentId).toBe(DOC_ID)
+		})
+
 		it("shows the document and makes it the active one", async ({ expect }) => {
 			seedWorkspace()
 			arrangeRoute()
