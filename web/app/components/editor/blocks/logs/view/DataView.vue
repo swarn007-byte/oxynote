@@ -91,7 +91,6 @@ const search = refDebounced(searchInput, SEARCH_DEBOUNCE_MS)
 const filters = ref<LogFilter[]>([])
 const expandedIds = ref(new Set<string>())
 const volumeVisible = ref(false)
-const wrapLines = ref(false)
 // the first and last rows the scroller shows. They tell when the next page
 // should load.
 const firstVisibleRow = ref(0)
@@ -542,25 +541,6 @@ async function readNewData() {
 						}}
 					</span>
 				</ShadcnUiButton>
-				<ShadcnUiButton
-					v-if="hasControls"
-					variant="ghost-plain"
-					size="icon-sm"
-					:class="
-						cn('size-6 aria-pressed:bg-muted', props.compact && '-mx-0.5')
-					"
-					:aria-pressed="wrapLines"
-					@click="wrapLines = !wrapLines"
-				>
-					<Icon name="mingcute:align-arrow-left-line" />
-					<span class="sr-only">
-						{{
-							wrapLines
-								? $t("editor.logs.view.unwrap-lines")
-								: $t("editor.logs.view.wrap-lines")
-						}}
-					</span>
-				</ShadcnUiButton>
 				<slot name="actions" />
 			</div>
 			<FilterChips v-if="filters.length" v-model="filters" class="pt-1" />
@@ -606,12 +586,7 @@ async function readNewData() {
 				</div>
 			</template>
 			<template #default="{ item, index, active }">
-				<DynamicScrollerItem
-					:item="item"
-					:active="active"
-					:data-index="index"
-					:size-dependencies="[wrapLines, expandedIds.has(item.id)]"
-				>
+				<DynamicScrollerItem :item="item" :active="active" :data-index="index">
 					<!-- the scroller reuses a row's view for another log while the
 					reader scrolls. The key gives each log its own row. So an open row
 					does not close and open again with an animation. -->
@@ -620,7 +595,6 @@ async function readNewData() {
 						:key="item.id"
 						:log="item"
 						:timestamp-format="props.config.timestampFormat"
-						:wrap-lines="wrapLines"
 						:search="search"
 						:dialect="dialect"
 						:line-filter-formats="lineFilterFormats"

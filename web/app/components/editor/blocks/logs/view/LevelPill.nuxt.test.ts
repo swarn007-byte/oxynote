@@ -25,6 +25,22 @@ describe("<LevelPill>", () => {
 		)
 	})
 
+	it.for(LEVELS)(
+		"abbreviates the %s level without duplicating its accessible name",
+		async (level, { expect }) => {
+			const wrapper = await mountSuspended(LevelPill, { props: { level } })
+			const abbreviation = wrapper.get("[aria-hidden='true']")
+			expect(abbreviation.text()).toBe(
+				level === LogLevel.Unknown
+					? "?"
+					: t(`editor.logs.levels.${level}`).slice(0, 1),
+			)
+			expect(wrapper.get(".sr-only").text()).toBe(
+				t(`editor.logs.levels.${level}`),
+			)
+		},
+	)
+
 	it("gives each level its own colour", async ({ expect }) => {
 		const colours = await Promise.all(
 			LEVELS.map(async (level) => {

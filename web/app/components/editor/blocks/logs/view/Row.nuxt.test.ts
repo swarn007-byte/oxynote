@@ -18,22 +18,22 @@ const LOCAL_TIME = new Date(2026, 0, 2, 3, 4, 5).toISOString()
 describe("<Row>", () => {
 	it.for([
 		{
-			name: "compacts a readable timestamp while collapsed",
+			name: "shows the date and time of the readable format apart",
 			input: { time: LOCAL_TIME, format: LogTimestampFormat.Readable },
-			expected: "03:04:05",
+			expected: "Jan 2, 2026 03:04:05 AM",
 		},
 		{
-			name: "compacts a time-only timestamp while collapsed",
+			name: "shows only the time of a readable time-only format",
 			input: { time: LOCAL_TIME, format: LogTimestampFormat.ReadableTime },
-			expected: "03:04:05",
+			expected: "03:04:05 AM",
 		},
 		{
-			name: "compacts a nanosecond timestamp while collapsed",
+			name: "shows the date and time of a numeric format apart",
 			input: {
 				time: LOCAL_TIME.replace(".000Z", ".123456789Z"),
 				format: LogTimestampFormat.NumericNano,
 			},
-			expected: "03:04:05",
+			expected: "2026-01-02 03:04:05.123456789",
 		},
 	])("$name", async ({ input, expected }, { expect }) => {
 		const wrapper = await mountRow({
@@ -73,7 +73,7 @@ describe("<Row>", () => {
 			log: makeLog({ level: LogLevel.Error }),
 		})
 
-		expect(wrapper.get("button .rounded-full").text()).toBe(
+		expect(wrapper.get("button .rounded-full .sr-only").text()).toBe(
 			t("editor.logs.levels.error"),
 		)
 	})
@@ -85,7 +85,7 @@ describe("<Row>", () => {
 		expected: string
 	}>([
 		{
-			name: "keeps logfmt supplementary fields out of the preview",
+			name: "splits a logfmt line and shows the extra parser keys with its keys",
 			input: {
 				level: LogLevel.Error,
 				line: 'level=error msg="value out of range" value=+Inf',
@@ -98,25 +98,26 @@ describe("<Row>", () => {
 					unit: "ms",
 				},
 			},
-			expected: "value out of range",
+			expected:
+				"value out of range · value=+Inf unit=ms · trace_id=abc · app=chaos",
 		},
 		{
-			name: "does not substitute labels for a blank message",
+			name: "starts with the labels of a line of only white space",
 			input: { line: "  ", labels: { app: "chaos" } },
-			expected: "",
+			expected: "app=chaos",
 		},
 		{
-			name: "shows the JSON message without appending fields or labels",
+			name: "sums up a line by its message, fields and labels",
 			input: {
 				line: '{"msg":"done","status":"200","user":"ada lovelace"}',
 				labels: { job: "api" },
 			},
-			expected: "done",
+			expected: 'done · status=200 user="ada lovelace" · job=api',
 		},
 		{
-			name: "preserves a structured line that has no message field",
+			name: "starts with the fields of a line without a message",
 			input: { line: '{"status":"200"}', labels: { job: "api" } },
-			expected: '{"status":"200"}',
+			expected: "status=200 · job=api",
 		},
 		{
 			name: "shows only the message of a line without fields or labels",
@@ -136,13 +137,13 @@ describe("<Row>", () => {
 		expected: string[]
 	}>([
 		{
-			name: "marks only the visible message of a JSON line",
+			name: "marks the search in the message and the fields of a JSON line",
 			input: {
 				line: '{"msg":"Ada signed in","user":"ada"}',
 				labels: {},
 				fields: {},
 			},
-			expected: ["Ada"],
+			expected: ["Ada", "ada"],
 		},
 		{
 			name: "leaves the labels unmarked, since the search reads only the line",
@@ -163,14 +164,14 @@ describe("<Row>", () => {
 			expected: ["Ada"],
 		},
 		{
-			name: "keeps extra parsed fields out of a plain message preview",
+			name: "marks the search in the keys a parser took from a plain line",
 			input: {
 				line: "Ada signed in",
 				labels: {},
 				fields: {},
 				parsed: { user: "ada" },
 			},
-			expected: ["Ada"],
+			expected: ["Ada", "ada"],
 		},
 		{
 			name: "leaves the fields carried beside a plain line unmarked",
@@ -195,9 +196,9 @@ describe("<Row>", () => {
 
 	it.for([
 		{
-			name: "keeps fields and labels out of the preview while searching",
+			name: "fades the fields carried beside the line and the labels while a search is on",
 			input: "ada",
-			expected: [],
+			expected: ["trace_id=abc", "env=prod"],
 		},
 		{ name: "fades nothing without a search", input: "", expected: [] },
 	])("$name", async ({ input, expected }, { expect }) => {
@@ -233,7 +234,7 @@ describe("<Row>", () => {
 		expect(wrapper.get("h4").text()).toBe(t("editor.logs.view.line-heading"))
 	})
 
-	it("keeps repeated fields out of the preview and available in metadata", async ({
+	it("shows a field the line repeats once, but still lists it under metadata", async ({
 		expect,
 	}) => {
 		const wrapper = await mountRow({
@@ -246,8 +247,8 @@ describe("<Row>", () => {
 		})
 
 		const text = summary(wrapper).text()
-		expect(text).toBe("order placed")
-		expect(text).not.toContain("trace_id")
+		expect(text).toBe("order placed · trace_id=4bf9")
+		expect(text.match(/trace_id/gu)).toHaveLength(1)
 
 		// the origin, metadata and content tables each keep their own rows
 		const metadata = wrapper.findAll(".divide-y")[1]
@@ -287,45 +288,6 @@ describe("<Row>", () => {
 		},
 	)
 
-	it("keeps the complete timestamp available on hover and expansion", async ({
-		expect,
-	}) => {
-		const original = LOCAL_TIME.replace(".000Z", ".123456789Z")
-		const wrapper = await mountRow({
-			log: makeLog({ time: original }),
-			timestampFormat: LogTimestampFormat.NumericNano,
-		})
-		expect(wrapper.get("time").attributes("title")).toBe(original)
-		expect(wrapper.get("time").attributes("datetime")).toBe(original)
-		await wrapper.setProps({ expanded: true })
-		expect(wrapper.get("time").text()).toContain("2026-01-02")
-		expect(wrapper.get("time").text()).toContain(".123456789")
-	})
-
-	it("preserves the raw message and exposes supplementary fields in details", async ({
-		expect,
-	}) => {
-		const line = 'msg="deploy finished" sha=abc outcome=successful'
-		const wrapper = await mountRow({
-			log: makeLog({ line, fields: { trace_id: "trace-123" } }),
-		})
-		expect(summary(wrapper).text()).toBe("deploy finished")
-		expect(wrapper.text()).not.toContain("trace-123")
-		await wrapper.setProps({ expanded: true })
-		await flushPromises()
-		expect(wrapper.text()).toContain(line)
-		expect(wrapper.text()).toContain("trace-123")
-		expect(wrapper.text()).toContain(t("editor.logs.view.content-heading"))
-	})
-
-	it("retains text that resembles metadata inside an ordinary message", async ({
-		expect,
-	}) => {
-		const line = "deploy finished sha=abc in 42s"
-		const wrapper = await mountRow({ log: makeLog({ line }) })
-		expect(summary(wrapper).text()).toBe(line)
-	})
-
 	it("passes on a filter from its details", async ({ expect }) => {
 		const wrapper = await mountRow({ expanded: true })
 
@@ -362,7 +324,6 @@ function rowProps(
 		timestampFormat?: LogTimestampFormat
 		search?: string
 		expanded?: boolean
-		wrapLines?: boolean
 	} = {},
 ) {
 	return {
@@ -377,5 +338,5 @@ function rowProps(
 }
 
 function summary(wrapper: VueWrapper) {
-	return wrapper.get("button .flex-1")
+	return wrapper.get("button .flex-1.overflow-x-auto")
 }

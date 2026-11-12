@@ -4,7 +4,6 @@ import { enableAutoUnmount, type VueWrapper } from "@vue/test-utils"
 import { setResponseStatus } from "h3"
 import { afterEach, beforeEach, describe, it, vi } from "vitest"
 import DataView from "./DataView.vue"
-import Row from "./Row.vue"
 import {
 	makeLog,
 	logsResult,
@@ -152,7 +151,7 @@ describe("<DataView>", { concurrent: false }, () => {
 			).toBe(false)
 		})
 
-		it("puts the host marker before view toggles and host actions after them", async ({
+		it("puts the host's marker before the volume toggle and its actions after it, without the search when asked", async ({
 			expect,
 		}) => {
 			mockEndpoint("GET", LINES_URL, () =>
@@ -171,20 +170,13 @@ describe("<DataView>", { concurrent: false }, () => {
 			const order = [...(header?.children ?? [])].map((el) =>
 				el.classList.contains("host-marker")
 					? "marker"
-					: el.textContent.trim() === t("editor.logs.view.wrap-lines")
-						? "wrap"
-						: el.hasAttribute("aria-pressed")
-							? "volume"
-							: el.classList.contains("host-action")
-								? "actions"
-								: null,
+					: el.hasAttribute("aria-pressed")
+						? "volume"
+						: el.classList.contains("host-action")
+							? "actions"
+							: null,
 			)
-			expect(order.filter(Boolean)).toEqual([
-				"marker",
-				"volume",
-				"wrap",
-				"actions",
-			])
+			expect(order.filter(Boolean)).toEqual(["marker", "volume", "actions"])
 			expect(
 				wrapper
 					.findAll("button")
@@ -504,7 +496,7 @@ describe("<DataView>", { concurrent: false }, () => {
 			expect(rows(wrapper).classes()).not.toContain("flex-col-reverse")
 		})
 
-		it("compacts timestamps until the row expands", async ({ expect }) => {
+		it("shows times in the block's format", async ({ expect }) => {
 			mockEndpoint("GET", LINES_URL, () =>
 				logsResult([makeLog("a1", "11:57:00.123456789Z")]),
 			)
@@ -515,7 +507,7 @@ describe("<DataView>", { concurrent: false }, () => {
 			await settleLogRequests()
 
 			expect(wrapper.get("button[aria-expanded] .tabular-nums").text()).toBe(
-				format(new Date("2026-01-01T11:57:00Z"), "HH:mm:ss"),
+				`${format(new Date("2026-01-01T11:57:00Z"), "yyyy-MM-dd HH:mm:ss")}.123456789`,
 			)
 		})
 
@@ -773,32 +765,6 @@ describe("<DataView>", { concurrent: false }, () => {
 				'{job="db"}',
 			])
 		})
-	})
-
-	it("toggles wrapping for loaded rows without querying again", async ({
-		expect,
-	}) => {
-		const calls = mockEndpoint("GET", LINES_URL, () =>
-			logsResult([makeLog("a1", "11:57:00Z")]),
-		)
-		const wrapper = await mountView(logConfig())
-		await settleLogRequests()
-		const reads = calls.length
-		expect(wrapper.getComponent(Row).props("wrapLines")).toBe(false)
-		await findButtonByText(wrapper, t("editor.logs.view.wrap-lines")).trigger(
-			"click",
-		)
-		expect(wrapper.getComponent(Row).props("wrapLines")).toBe(true)
-		expect(
-			findButtonByText(wrapper, t("editor.logs.view.unwrap-lines")).attributes(
-				"aria-pressed",
-			),
-		).toBe("true")
-		await findButtonByText(wrapper, t("editor.logs.view.unwrap-lines")).trigger(
-			"click",
-		)
-		expect(wrapper.getComponent(Row).props("wrapLines")).toBe(false)
-		expect(calls).toHaveLength(reads)
 	})
 
 	describe("volume", () => {
@@ -1534,7 +1500,9 @@ function rowButtons(wrapper: VueWrapper) {
 
 // each row's message, which is the line itself for these plain lines
 function rowMessages(wrapper: VueWrapper): string[] {
-	return rowButtons(wrapper).map((b) => b.get(".flex-1").text())
+	return rowButtons(wrapper).map(
+		(b) => b.get(".flex-1.overflow-x-auto").text().split(" · ")[0] ?? "",
+	)
 }
 
 function chipTexts(wrapper: VueWrapper): string[] {
