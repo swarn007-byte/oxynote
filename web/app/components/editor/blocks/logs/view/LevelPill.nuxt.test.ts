@@ -17,7 +17,12 @@ describe("<LevelPill>", () => {
 	it.for(LEVELS)("names the %s level", async (level, { expect }) => {
 		const wrapper = await mountSuspended(LevelPill, { props: { level } })
 
-		expect(wrapper.text()).toBe(t(`editor.logs.levels.${level}`))
+		expect(wrapper.get(".sr-only").text()).toBe(
+			t(`editor.logs.levels.${level}`),
+		)
+		expect(wrapper.get("span").attributes("title")).toBe(
+			t(`editor.logs.levels.${level}`),
+		)
 	})
 
 	it("gives each level its own colour", async ({ expect }) => {

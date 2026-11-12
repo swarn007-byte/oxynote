@@ -324,10 +324,8 @@ describe("<LogMainBlock>", { concurrent: false }, () => {
 			t("editor.logs.config.modal-trigger-button-normal"),
 		)
 		expect(
-			wrapper
-				.findAll("button[aria-expanded] .flex-1.overflow-x-auto")
-				.map((m) => m.text()),
-		).toEqual(["deploy finished · env=prod"])
+			wrapper.findAll("button[aria-expanded] .flex-1").map((m) => m.text()),
+		).toEqual(["deploy finished"])
 	})
 
 	it.for([
@@ -383,6 +381,10 @@ describe("<LogMainBlock>", { concurrent: false }, () => {
 						return "marker"
 					}
 
+					if (el.textContent.trim() === t("editor.logs.view.wrap-lines")) {
+						return "wrap"
+					}
+
 					if (el.hasAttribute("aria-pressed")) {
 						return "volume"
 					}
@@ -390,7 +392,7 @@ describe("<LogMainBlock>", { concurrent: false }, () => {
 					return el.textContent.includes(settings) ? "settings" : null
 				})
 				.filter(Boolean),
-		).toEqual(["marker", "volume", "settings"])
+		).toEqual(["marker", "volume", "wrap", "settings"])
 	})
 
 	it("opens the config modal from the view's empty state", async ({
