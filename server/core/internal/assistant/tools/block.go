@@ -52,9 +52,6 @@ type insertBlocks struct {
 
 	// Content is the blocks, as markup.
 	Content string `json:"content"`
-
-	// ReturnContent includes the written XML instead of only block ids.
-	ReturnContent bool `json:"return_content"`
 }
 
 // Info returns the tool's model-facing description.
@@ -62,7 +59,7 @@ func (insertBlocks) Info() Info {
 	return Info{
 		Name:        NameInsertBlocks,
 		Traits:      Traits{Write: true},
-		Description: "Insert blocks into a document, written as XML, all in one call: at its start or end, or before or after the block reference_block_uid names. Every element is a new block, so leave id out; replace_blocks changes existing ones. A block not allowed where it lands is refused, naming what the place takes. Returns {block_uids: [id]} for every written block, including nested blocks, in document order. Set return_content to true for {content: XML} instead, including ids and any normalised markup.",
+		Description: "Insert blocks into a document, written as XML, all in one call: at its start or end, or before or after the block reference_block_uid names. Every element is a new block, so leave id out; replace_blocks changes existing ones. A block not allowed where it lands is refused, naming what the place takes. Returns the written blocks as XML with their ids.",
 		Properties: map[string]any{
 			"document_id":         map[string]any{"type": "string", "description": _documentIDDescription},
 			"branch_id":           map[string]any{"type": "string", "description": _writeBranchIDDescription},
@@ -72,8 +69,7 @@ func (insertBlocks) Info() Info {
 				"enum":        []string{string(positionBefore), string(positionAfter), string(positionStart), string(positionEnd)},
 				"description": "Where the blocks land: before or after the reference block, or at the start or end of the document.",
 			},
-			"content":        map[string]any{"type": "string", "description": _contentDescription},
-			"return_content": map[string]any{"type": "boolean", "description": "Optional. Return the full written XML with ids and normalised markup instead of block_uids. Defaults to false."},
+			"content": map[string]any{"type": "string", "description": _contentDescription},
 		},
 		Required: []string{"document_id", "branch_id", "position", "content"},
 	}
@@ -152,7 +148,7 @@ func (ib insertBlocks) Exec(inp Input) (any, error) {
 		return nil, err
 	}
 
-	return writtenBlocks(blocks, ib.ReturnContent), nil
+	return blockWriteResult{Content: markup.Render(blocks)}, nil
 }
 
 // insertOps returns the operations that insert blocks, at least one, at
@@ -183,9 +179,6 @@ type replaceBlocks struct {
 
 	// Content is what takes its place, as markup.
 	Content string `json:"content"`
-
-	// ReturnContent includes the written XML instead of only block ids.
-	ReturnContent bool `json:"return_content"`
 }
 
 // Info returns the tool's model-facing description.
@@ -193,13 +186,12 @@ func (replaceBlocks) Info() Info {
 	return Info{
 		Name:        NameReplaceBlocks,
 		Traits:      Traits{Write: true, Overwrites: true},
-		Description: "Replace one block with the blocks content holds, in the XML insert_blocks describes. To change a block, read it with get_document (block_uid narrows the read), edit the XML and send it back. Keep the id of every element that stays: it keeps its comments, hooks and files, and unchanged content stays exactly as stored. An element without an id is new; an id from outside the replaced block is refused. Returns {block_uids: [id]} for every written block, including nested blocks, in document order. Kept ids stay the same. Set return_content to true for {content: XML} instead, including ids and any normalised markup.",
+		Description: "Replace one block with the blocks content holds, in the XML insert_blocks describes. To change a block, read it with get_document (block_uid narrows the read), edit the XML and send it back. Keep the id of every element that stays: it keeps its comments, hooks and files, and unchanged content stays exactly as stored. An element without an id is new; an id from outside the replaced block is refused. Returns the written blocks as XML.",
 		Properties: map[string]any{
-			"document_id":    map[string]any{"type": "string", "description": _documentIDDescription},
-			"branch_id":      map[string]any{"type": "string", "description": _writeBranchIDDescription},
-			"block_uid":      map[string]any{"type": "string", "description": "The id of the block being replaced."},
-			"content":        map[string]any{"type": "string", "description": "The blocks taking its place, as XML in the format insert_blocks describes."},
-			"return_content": map[string]any{"type": "boolean", "description": "Optional. Return the full written XML with ids and normalised markup instead of block_uids. Defaults to false."},
+			"document_id": map[string]any{"type": "string", "description": _documentIDDescription},
+			"branch_id":   map[string]any{"type": "string", "description": _writeBranchIDDescription},
+			"block_uid":   map[string]any{"type": "string", "description": "The id of the block being replaced."},
+			"content":     map[string]any{"type": "string", "description": "The blocks taking its place, as XML in the format insert_blocks describes."},
 		},
 		Required: []string{"document_id", "branch_id", "block_uid", "content"},
 	}
@@ -272,7 +264,7 @@ func (rb replaceBlocks) Exec(inp Input) (any, error) {
 		return nil, err
 	}
 
-	return writtenBlocks(blocks, rb.ReturnContent), nil
+	return blockWriteResult{Content: markup.Render(blocks)}, nil
 }
 
 // deleteBlock removes a block from a document.
@@ -440,38 +432,11 @@ func (mb moveBlock) Exec(inp Input) (any, error) {
 	return blockWriteResult{Content: markup.Render([]document.Block{b})}, nil
 }
 
-// blockWriteResult reports the written block ids or their full markup.
+// blockWriteResult is what a block write returns: the blocks it wrote
+// or moved, as markup.
 type blockWriteResult struct {
-	// BlockUIDs are the written block ids in document order.
-	BlockUIDs []string `json:"block_uids,omitempty"`
-
-	// Content is the blocks as markup, ids included, when requested.
-	Content string `json:"content,omitempty"`
-}
-
-// writtenBlocks reports the built tree without fetching the document again.
-func writtenBlocks(blocks []document.Block, returnContent bool) blockWriteResult {
-	if returnContent {
-		return blockWriteResult{Content: markup.Render(blocks)}
-	}
-
-	var ids []string
-
-	var visit func([]document.Block)
-
-	visit = func(bb []document.Block) {
-		for _, b := range bb {
-			if uid, ok := b.UID(); ok {
-				ids = append(ids, uid)
-			}
-
-			visit(b.Content)
-		}
-	}
-
-	visit(blocks)
-
-	return blockWriteResult{BlockUIDs: ids}
+	// Content is the blocks as markup, ids included.
+	Content string `json:"content"`
 }
 
 // insertAfterPrevious returns first, the operation that writes the first
